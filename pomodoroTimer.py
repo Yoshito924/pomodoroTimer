@@ -6,8 +6,8 @@ import winsound
 # 離脱防止サウンドを鳴らす間隔（作業タイマーワンサイクルの中で何回鳴らすか）
 reminderInterval = 3
 # 鳴らしたい音のファイルパスを書く↓
-startSound = "pomodoroTimer/sounds/startBell.wav"  # スタート時の音
-reminderSound = "pomodoroTimer/sounds/bubble.wav"  # 離脱防止の音
+startSoundPath = "pomodoroTimer/sounds/startBell.wav"  # スタート時の音
+reminderSoundPath = "pomodoroTimer/sounds/bubble.wav"  # 離脱防止の音
 
 
 # -------------------------------------------------------------------------------------------------
@@ -63,7 +63,7 @@ class PomodoroTimer:
             self.timer_running = True
             self.start_button.config(text="停止")
             winsound.PlaySound(
-                startSound,  # スタート時の音を鳴らす
+                startSoundPath,  # スタート時の音を鳴らす
                 winsound.SND_FILENAME,
             )  # タイマー開始時に音を再生
             self.countdown()
@@ -102,7 +102,7 @@ class PomodoroTimer:
                     for i in range(1, reminderInterval)
                 ]:
                     winsound.PlaySound(
-                        reminderSound,
+                        reminderSoundPath,
                         winsound.SND_FILENAME,  # 途中で集中が途切れていないか音を鳴らす（鳴らしたい音のファイルパスを書く）
                     )
             else:
@@ -111,7 +111,7 @@ class PomodoroTimer:
         # タイマーが0になった場合、次のタイマー（作業用または休憩用）を開始
         elif timer_seconds == 0:
             winsound.PlaySound(
-                startSound,  # スタート時の音を鳴らす
+                startSoundPath,  # スタート時の音を鳴らす
                 winsound.SND_FILENAME,
             )
             if self.current_timer == "work":
