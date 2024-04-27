@@ -11,7 +11,7 @@ reminderSound = "pomodoroTimer/sounds/bubble.wav"  # 離脱防止の音
 
 
 # -------------------------------------------------------------------------------------------------
-oneMinutes = 1  # 1分は60秒
+oneMinutes = 60  # 1分は60秒
 workTimerTime = 25  # 作業用タイマーは25分
 breakTimerTime = 5  # 休憩用タイマーは5分
 
