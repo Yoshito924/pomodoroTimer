@@ -21,7 +21,7 @@
 - スタート時の音：`startSound = "pomodoroTimer/sounds/startBell.wav"  # スタート時の音`
 - 離脱防止用のサウンド：`reminderSound = "pomodoroTimer/sounds/bubble.wav"  # 離脱防止の音`
 
-25分の作業タイマー途中で鳴らす音タイミングを変えたければ下記の変数の数字を変更してください。
+25分の作業タイマー途中で鳴らす音タイミングを変えたければ、`pomodoroTimer.py` の下記の変数の値を変更してください。
 初期設定の「3」の場合は、大体25分を3等分した場所で離脱防止音が鳴ります。（実行されるプログラムの特性上、等分した時間から少し誤差があります。）
 
 - `reminderInterval = 3`
