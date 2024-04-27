@@ -74,8 +74,14 @@ class PomodoroTimer:
             self.update_timer_label(minutes, seconds)
             if self.current_timer == "work":
                 self.work_seconds -= 1
-                # 8分と16分時点で音を鳴らす
-                if self.work_seconds == 17 * 60 or self.work_seconds == 9 * 60:
+                # -------------------------------------------------------------------------------------------------
+                # 途中で音を鳴らす（鳴らすタイミングをいじりたければ下記の部分を変える）
+                if (
+                    self.work_seconds == 6 * 60
+                    or self.work_seconds == 13 * 60
+                    or self.work_seconds == 19 * 60
+                ):
+                    # -------------------------------------------------------------------------------------------------
                     winsound.PlaySound(
                         "pomodoroTimer/sounds/bubble.wav",
                         winsound.SND_FILENAME,  # 途中で集中が途切れていないか音を鳴らす（鳴らしたい音のファイルパスを書く）
