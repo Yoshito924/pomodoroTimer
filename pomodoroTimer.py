@@ -15,6 +15,9 @@ oneMinutes = 60  # 1分は60秒
 workTimerTime = 25  # 作業用タイマーは25分
 breakTimerTime = 5  # 休憩用タイマーは5分
 
+# ウィンドウの初期表示位置の座標
+windowPosition = (1720, 875)
+
 
 # -------------------------------------------------------------------------------------------------
 class PomodoroTimer:
@@ -49,7 +52,7 @@ class PomodoroTimer:
         master.wm_attributes("-topmost", True)
 
         # ウィンドウの初期表示位置を設定
-        master.geometry("+{}+{}".format(1721, 876))
+        master.geometry("+{}+{}".format(windowPosition[0], windowPosition[1]))
 
         # ウィンドウの位置が変更されたときのイベントを監視
         master.bind("<Configure>", self.on_window_configure)
