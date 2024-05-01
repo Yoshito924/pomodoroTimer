@@ -18,7 +18,7 @@ workTimerTime = 25  # 作業用タイマーは25分
 breakTimerTime = 5  # 休憩用タイマーは5分
 
 # ウィンドウの初期表示位置の座標
-windowPosition = (1720, 875)
+windowPosition = (1908, 877)
 
 # 起動時の日付を取得
 start_date = datetime.now().strftime("%Y-%m-%d")
