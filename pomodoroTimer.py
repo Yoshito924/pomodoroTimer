@@ -9,8 +9,8 @@ import os
 # 離脱防止サウンドを鳴らす間隔（作業タイマーワンサイクルの中で何回鳴らすか）
 reminderInterval = 3
 # 鳴らしたい音のファイルパスを書く↓
-startSoundPath = "pomodoroTimer/sounds/startBell.wav"  # スタート時の音
-reminderSoundPath = "pomodoroTimer/sounds/bubble.wav"  # 離脱防止の音
+startSoundPath = "sounds/startBell.wav"  # スタート時の音
+reminderSoundPath = "sounds/bubble.wav"  # 離脱防止の音
 
 # -------------------------------------------------------------------------------------------------
 oneMinutes = 60  # 1分は60秒
@@ -18,11 +18,11 @@ workTimerTime = 25  # 作業用タイマーは25分
 breakTimerTime = 5  # 休憩用タイマーは5分
 
 # ウィンドウの初期表示位置の座標
-windowPosition = (1720, 875)
+windowPosition = (1920, 875)
 
 # 起動時の日付を取得
 start_date = datetime.now().strftime("%Y-%m-%d")
-csv_file = f"pomodoroTimer/log/pomodoro_log_{start_date}.csv"
+csv_file = f"log/pomodoro_log_{start_date}.csv"
 
 # CSVファイルが存在しない場合は新規作成し、ヘッダーを書き込む
 if not os.path.exists(csv_file):
