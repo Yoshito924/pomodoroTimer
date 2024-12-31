@@ -17,8 +17,24 @@ oneMinutes = 60  # 1分は60秒
 workTimerTime = 25  # 作業用タイマーは25分
 breakTimerTime = 5  # 休憩用タイマーは5分
 
-# ウィンドウの初期表示位置の座標
-windowPosition = (1920, 875)
+import json
+
+# ウィンドウ設定ファイルのパス
+WINDOW_SETTINGS_FILE = "window_settings.json"
+
+def load_window_settings():
+    try:
+        with open(WINDOW_SETTINGS_FILE, 'r') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return {
+            "position": {"x": 1920, "y": 875},
+            "size": {"width": 300, "height": 150}
+        }
+
+def save_window_settings(settings):
+    with open(WINDOW_SETTINGS_FILE, 'w') as f:
+        json.dump(settings, f, indent=4)
 
 # 起動時の日付を取得
 start_date = datetime.now().strftime("%Y-%m-%d")
@@ -67,28 +83,66 @@ class PomodoroTimer:
         )
         self.pomodoro_label.pack(pady=5)
 
+        # ボタン用のフレームを作成
+        self.button_frame = ttk.Frame(master)
+        self.button_frame.pack(pady=5)
+
         # 開始/停止ボタンを作成
-        self.start_button = ttk.Button(master, text="開始", command=self.toggle_timer)
+        self.start_button = ttk.Button(self.button_frame, text="開始", command=self.toggle_timer)
         self.start_button.pack(side=tk.LEFT, padx=10)
 
         # リセットボタンを作成
         self.reset_button = ttk.Button(
-            master, text="リセット", command=self.reset_timer
+            self.button_frame, text="リセット", command=self.reset_timer
         )
         self.reset_button.pack(side=tk.LEFT)
+
+        # 最前面表示用のフレームを作成（他のボタンと分離）
+        self.topmost_frame = ttk.Frame(master)
+        self.topmost_frame.pack(pady=5)
+
+        # 最前面表示の状態を保持する変数
+        self.is_topmost = True
+        
+        # 最前面表示切り替えボタンを作成（別フレームに配置）
+        self.topmost_button = ttk.Button(
+            self.topmost_frame, 
+            text="最前面：オン", 
+            command=self.toggle_topmost
+        )
+        self.topmost_button.pack()
 
         # ウィンドウを常に最前面に表示
         master.wm_attributes("-topmost", True)
 
-        # ウィンドウの初期表示位置を設定
-        master.geometry("+{}+{}".format(windowPosition[0], windowPosition[1]))
+        # ウィンドウ設定を読み込み
+        settings = load_window_settings()
+        pos = settings["position"]
+        size = settings["size"]
+
+        # ウィンドウの初期サイズと表示位置を設定
+        master.geometry(f"{size['width']}x{size['height']}+{pos['x']}+{pos['y']}")
 
         # ウィンドウの位置が変更されたときのイベントを監視
         master.bind("<Configure>", self.on_window_configure)
 
+    def toggle_topmost(self):
+        self.is_topmost = not self.is_topmost
+        self.master.wm_attributes("-topmost", self.is_topmost)
+        self.topmost_button.config(text="最前面：オン" if self.is_topmost else "最前面：オフ")
+
     def on_window_configure(self, event):
         if event.widget == self.master:
-            print("Window position: ({}, {})".format(event.x, event.y))
+            # ウィンドウの現在の位置とサイズを取得
+            geometry = event.widget.geometry()
+            width, height, x, y = map(int, geometry.replace("+", "x").split("x"))
+            
+            # 設定を更新
+            settings = {
+                "position": {"x": x, "y": y},
+                "size": {"width": width, "height": height}
+            }
+            save_window_settings(settings)
 
     def toggle_timer(self):
         if not self.timer_running:
