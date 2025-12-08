@@ -154,7 +154,8 @@ class PomodoroTimer:
         size = self.config["window"]["size"]
         self.master.geometry(f"{size['width']}x{size['height']}+{pos['x']}+{pos['y']}")
         
-        # ウィンドウ位置の変更を監視
+        # ウィンドウ位置の変更を監視（デバウンス用）
+        self._window_configure_timer = None
         self.master.bind("<Configure>", self.on_window_configure)
         
     def ensure_csv_file(self):
@@ -209,6 +210,48 @@ class PomodoroTimer:
         
         self.update_timer_label(self.work_seconds)
     
+    def _should_play_reminder(self, timer_seconds):
+        """リマインダー音を再生すべきかどうかを判定"""
+        if self.current_timer != "work":
+            return False
+        
+        total_work_seconds = self.config["timer"]["work_time"] * 60
+        remaining_seconds = timer_seconds % total_work_seconds
+        interval = total_work_seconds // self.config["timer"]["reminder_interval"]
+        
+        # 各間隔の時点で音を鳴らす
+        reminder_points = [interval * i for i in range(1, self.config["timer"]["reminder_interval"])]
+        return remaining_seconds in reminder_points
+    
+    def _switch_timer(self):
+        """タイマーをwork/break間で切り替え"""
+        self.sound_manager.play_start_sound()
+        
+        if self.current_timer == "work":
+            # work → break
+            self.current_timer = "break"
+            self.break_seconds = self.config["timer"]["break_time"] * 60
+            self.work_count += 1
+            self.pomodoro_count += 1
+            self.update_pomodoro_label()
+            next_seconds = self.break_seconds
+        else:
+            # break → work
+            self.current_timer = "work"
+            self.work_seconds = self.config["timer"]["work_time"] * 60
+            self.break_count += 1
+            next_seconds = self.work_seconds
+        
+        # タイマー開始時刻を記録
+        self.start_time = datetime.now()
+        self.log_pomodoro(start_time=self.start_time)
+        
+        # タイマーの文字色を更新
+        self.update_timer_color()
+        
+        # 次のタイマーを開始
+        self.countdown(next_seconds)
+    
     def countdown(self, timer_seconds):
         """カウントダウンを実行"""
         if timer_seconds > 0 and self.timer_running:
@@ -217,12 +260,7 @@ class PomodoroTimer:
             
             if self.current_timer == "work":
                 self.work_seconds = timer_seconds - 1
-                # 離脱防止のための音を鳴らす
-                total_work_seconds = self.config["timer"]["work_time"] * 60
-                remaining_seconds = self.work_seconds % total_work_seconds
-                interval = total_work_seconds // self.config["timer"]["reminder_interval"]
-                
-                if remaining_seconds in [interval * i for i in range(1, self.config["timer"]["reminder_interval"])]:
+                if self._should_play_reminder(timer_seconds - 1):
                     self.sound_manager.play_reminder_sound()
             else:
                 self.break_seconds = timer_seconds - 1
@@ -230,41 +268,22 @@ class PomodoroTimer:
             self.master.after(1000, self.countdown, timer_seconds - 1)
             
         elif timer_seconds == 0:
-            self.sound_manager.play_start_sound()
-            
-            if self.current_timer == "work":
-                self.current_timer = "break"
-                self.break_seconds = self.config["timer"]["break_time"] * 60
-                self.work_count += 1
-                
-                # ポモドーロのループ回数を増やす
-                self.pomodoro_count += 1
-                self.update_pomodoro_label()
-                
-                # タイマー開始時刻を記録
-                self.start_time = datetime.now()
-                self.log_pomodoro(start_time=self.start_time)
-                
-                self.countdown(self.break_seconds)
-            else:
-                self.current_timer = "work"
-                self.work_seconds = self.config["timer"]["work_time"] * 60
-                self.break_count += 1
-                
-                # タイマー開始時刻を記録
-                self.start_time = datetime.now()
-                self.log_pomodoro(start_time=self.start_time)
-                
-                self.countdown(self.work_seconds)
-            
-            # タイマーの文字色を更新
-            self.update_timer_color()
+            self._switch_timer()
     
-    def update_timer_label(self, minutes, seconds=None):
-        """タイマーのラベルを更新"""
+    def update_timer_label(self, total_seconds, seconds=None):
+        """タイマーのラベルを更新
+        
+        Args:
+            total_seconds: 秒数のみが渡された場合の総秒数、または分と秒が別々に渡された場合の分
+            seconds: 秒数（オプション）
+        """
         if seconds is None:
-            seconds = minutes % 60
-            minutes //= 60
+            # 秒数のみが渡された場合
+            minutes = total_seconds // 60
+            seconds = total_seconds % 60
+        else:
+            # 分と秒が別々に渡された場合
+            minutes = total_seconds
         self.timer_label.config(text=f"{minutes:02d}:{seconds:02d}")
     
     def update_timer_color(self):
@@ -365,8 +384,8 @@ class PomodoroTimer:
     def on_volume_change(self, value):
         """音量が変更された時の処理"""
         volume = int(float(value))
-        self.sound_manager.set_volume(volume)
-        save_config(self.config)
+        # set_volume内で設定保存を行うように変更
+        self.sound_manager.set_volume(volume, save_config)
     
     def show_settings(self):
         """設定ウィンドウを表示"""
@@ -381,27 +400,31 @@ class PomodoroTimer:
         self.reset_timer()
     
     def on_window_configure(self, event):
-        """ウィンドウの位置が変更された時の処理"""
+        """ウィンドウの位置が変更された時の処理（デバウンス付き）"""
         if event.widget == self.master:
-            # ウィンドウの現在の位置とサイズを取得
-            geometry = event.widget.geometry()
-            width, height, x, y = map(int, geometry.replace("+", "x").split("x"))
+            # 既存のタイマーをキャンセル
+            if self._window_configure_timer:
+                self.master.after_cancel(self._window_configure_timer)
             
-            # 設定を更新
-            self.config["window"]["position"] = {"x": x, "y": y}
-            self.config["window"]["size"] = {"width": width, "height": height}
-            save_config(self.config)
+            # 500ms後に設定を保存（デバウンス）
+            self._window_configure_timer = self.master.after(500, self._save_window_config)
+    
+    def _save_window_config(self):
+        """ウィンドウの設定を保存"""
+        geometry = self.master.geometry()
+        width, height, x, y = map(int, geometry.replace("+", "x").split("x"))
+        
+        # 設定を更新
+        self.config["window"]["position"] = {"x": x, "y": y}
+        self.config["window"]["size"] = {"width": width, "height": height}
+        save_config(self.config)
     
     def log_pomodoro(self, start_time=None, reset_time=None, interruption_time=None):
         """ポモドーロの状態をログに記録"""
-        row = []
-        
         if start_time:
             # タイマー開始時の記録
             timer_type = "work" if self.current_timer == "work" else "break"
-            count = (
-                self.work_count if self.current_timer == "work" else self.break_count
-            )
+            count = self.work_count if self.current_timer == "work" else self.break_count
             row = [
                 start_time.strftime("%Y-%m-%d %H:%M:%S"),
                 start_time.strftime("%H:%M:%S"),
@@ -420,12 +443,10 @@ class PomodoroTimer:
                 "",
                 self.pomodoro_count,
             ]
-        else:
+        elif interruption_time:
             # ポモドーロ中断時の記録
             timer_type = "work" if self.current_timer == "work" else "break"
-            count = (
-                self.work_count if self.current_timer == "work" else self.break_count
-            )
+            count = self.work_count if self.current_timer == "work" else self.break_count
             row = [
                 interruption_time.strftime("%Y-%m-%d %H:%M:%S"),
                 "",
@@ -434,6 +455,8 @@ class PomodoroTimer:
                 timer_type,
                 count,
             ]
+        else:
+            return  # 記録する情報がない場合は何もしない
         
         try:
             with open(self.csv_file, mode="a", newline="", encoding="shift_jis") as file:
@@ -448,16 +471,24 @@ class PomodoroTimer:
         pomodoro_count = 0
         
         try:
+            if not os.path.exists(self.csv_file):
+                return 0
+            
+            # CSVファイルを読み込んで最後の行から逆順に処理（効率化）
             with open(self.csv_file, mode="r", encoding="shift_jis") as file:
                 reader = csv.reader(file)
-                next(reader, None)  # ヘッダーをスキップ
-                for row in reversed(list(reader)):
-                    if row[0].startswith(today):
+                rows = list(reader)
+                # ヘッダーをスキップして最後の行から逆順に処理
+                for row in reversed(rows[1:]):
+                    if row and row[0].startswith(today):
                         try:
                             count = int(row[5]) if len(row) > 5 and row[5].strip() else 0
                             pomodoro_count = max(pomodoro_count, count)
-                        except ValueError:
-                            logger.warning(f"無効なカウント値を検出: {row[5]}")
+                            # 今日の最大値が見つかったら終了（最適化）
+                            if count > 0:
+                                break
+                        except (ValueError, IndexError):
+                            logger.warning(f"無効なカウント値を検出: {row[5] if len(row) > 5 else 'N/A'}")
         except Exception as e:
             logger.error(f"ログの読み込みに失敗: {e}")
         

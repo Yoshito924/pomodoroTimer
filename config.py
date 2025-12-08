@@ -41,15 +41,24 @@ def ensure_config_file():
         save_config(DEFAULT_CONFIG)
 
 
+def deep_merge(base_dict, update_dict):
+    """ネストされた辞書を深くマージする"""
+    result = base_dict.copy()
+    for key, value in update_dict.items():
+        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+            result[key] = deep_merge(result[key], value)
+        else:
+            result[key] = value
+    return result
+
+
 def load_config():
     """設定をJSONファイルから読み込む"""
     try:
         with open(CONFIG_FILE, "r") as f:
             config = json.load(f)
-            # デフォルト設定とマージして、新しい設定項目がある場合に対応
-            merged_config = DEFAULT_CONFIG.copy()
-            merged_config.update(config)
-            return merged_config
+            # デフォルト設定と深くマージして、新しい設定項目がある場合に対応
+            return deep_merge(DEFAULT_CONFIG.copy(), config)
     except FileNotFoundError:
         return DEFAULT_CONFIG.copy()
     except Exception as e:
@@ -59,6 +68,7 @@ def load_config():
 
 def save_config(config):
     """設定をJSONファイルに保存"""
+    temp_file = None
     try:
         # 設定ファイルのディレクトリが存在することを確認
         config_path = Path(CONFIG_FILE)
@@ -73,6 +83,7 @@ def save_config(config):
 
         # 一時ファイルを本来のファイルに移動
         os.replace(temp_file, CONFIG_FILE)
+        temp_file = None  # 正常に移動したので削除対象から除外
         logger.info("設定を正常に保存しました")
         return True
 
@@ -87,7 +98,7 @@ def save_config(config):
         return False
     finally:
         # 一時ファイルが残っている場合は削除
-        if os.path.exists(temp_file):
+        if temp_file and os.path.exists(temp_file):
             try:
                 os.remove(temp_file)
             except Exception as e:

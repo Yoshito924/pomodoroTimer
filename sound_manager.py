@@ -37,8 +37,8 @@ class SoundManager:
             logger.error(f"音量制御の初期化に失敗: {e}")
             self.volume_interface = None
 
-    def play_start_sound(self):
-        """開始/終了時の音を再生"""
+    def _play_sound(self, sound_file=None):
+        """音を再生する共通メソッド"""
         if not self.sound_enabled:
             return
 
@@ -49,35 +49,23 @@ class SoundManager:
                     self.config["sound"]["beep"]["duration"]
                 )
             else:
-                winsound.PlaySound(
-                    self.start_sound,
-                    winsound.SND_FILENAME | winsound.SND_ASYNC
-                )
+                if sound_file:
+                    winsound.PlaySound(
+                        sound_file,
+                        winsound.SND_FILENAME | winsound.SND_ASYNC
+                    )
         except Exception as e:
             logger.error(f"音声再生エラー: {e}")
             self.sound_enabled = False
             logger.warning("サウンドシステムを無効化しました")
+
+    def play_start_sound(self):
+        """開始/終了時の音を再生"""
+        self._play_sound(self.start_sound)
 
     def play_reminder_sound(self):
         """リマインダー音を再生"""
-        if not self.sound_enabled:
-            return
-
-        try:
-            if self.use_beep:
-                winsound.Beep(
-                    self.config["sound"]["beep"]["frequency"],
-                    self.config["sound"]["beep"]["duration"]
-                )
-            else:
-                winsound.PlaySound(
-                    self.reminder_sound,
-                    winsound.SND_FILENAME | winsound.SND_ASYNC
-                )
-        except Exception as e:
-            logger.error(f"音声再生エラー: {e}")
-            self.sound_enabled = False
-            logger.warning("サウンドシステムを無効化しました")
+        self._play_sound(self.reminder_sound)
 
     def toggle_sound_mode(self):
         """音声モードを切り替え（ビープ音 ⇔ WAV）"""
@@ -85,7 +73,7 @@ class SoundManager:
         self.config["sound"]["use_beep"] = self.use_beep
         return self.use_beep
 
-    def set_volume(self, volume):
+    def set_volume(self, volume, save_config_callback=None):
         """音量を設定（0-100）"""
         try:
             if self.volume_interface is not None:
@@ -103,6 +91,10 @@ class SoundManager:
 
                 self.volume_interface.SetMasterVolumeLevel(db, None)
                 logger.info(f"音量を設定: {self.volume}% ({db:.2f} dB)")
+                
+                # 設定保存のコールバックが提供された場合のみ保存
+                if save_config_callback:
+                    save_config_callback(self.config)
 
         except Exception as e:
             logger.error(f"音量の設定に失敗: {e}")
